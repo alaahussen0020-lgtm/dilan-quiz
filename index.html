@@ -126,12 +126,29 @@ const MODES=[
 ];
 let sel=new Set(SECT.map((_,i)=>i));
 
+const LOG_URL='https://script.google.com/macros/s/AKfycbwfaZkwjX7UXGCWtAuKJUB-8VCjppwAKXXChSPiARWzSWWoGhzmwH0IgcSSDE2glEl0/exec';
+function getName(){return store('dilan-name')||''}
+function logEvent(o){if(!LOG_URL||LOG_URL.indexOf('http')!==0)return;
+  try{fetch(LOG_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({name:getName()},o))}).catch(()=>{})}catch(e){}}
+let opened=false;function logOpen(){if(opened||!getName())return;opened=true;logEvent({event:'کردنەوە'})}
+function nameGate(){
+  app.innerHTML=`<header><div class="ded">تەنها بۆ خاتوو دیلان</div><h1>کوێزی وشە سەرەتاییەکان</h1><div class="sub">${W.length} وشەی یەکەمی زمانی ئەڵمانی</div></header>
+  <div class="card"><div class="label">بەخێربێیت! پێش دەستپێکردن ناوت بنووسە</div>
+  <form id="nf"><input id="nm" autocomplete="name" placeholder="ناوت" style="width:100%;border:2px solid #e6dccb;border-radius:14px;padding:14px;font:inherit;font-size:18px;background:#fff;margin-bottom:10px">
+  <button class="next" type="submit">دەستپێبکە</button></form>
+  <div class="sub" style="margin-top:12px;font-size:13px">ئەنجامی تاقیکردنەوەکانت بە ناوەکەتەوە بۆ مامۆستا دەنێردرێن.</div></div>`;
+  const f=app.querySelector('#nf');f.onsubmit=e=>{e.preventDefault();const v=app.querySelector('#nm').value.trim();if(!v)return;store('dilan-name',v.slice(0,60));logOpen();home()};
+}
 function home(){
+  if(!getName()){nameGate();return}
+  logOpen();
   const best=store('dilan-best');
   app.innerHTML=`<header><div class="ded">تەنها بۆ خاتوو دیلان</div><h1>کوێزی وشە سەرەتاییەکان</h1><div class="sub">${W.length} وشەی یەکەمی زمانی ئەڵمانی</div></header>
   <div class="card"><div class="label">بەشەکان</div><div class="chips">${SECT.map((s,i)=>`<button class="chip ${sel.has(i)?'on':''}" data-s="${i}">${esc(s)}</button>`).join('')}</div></div>
   <div class="card"><div class="label">جۆری تاقیکردنەوە هەڵبژێرە</div><div class="modes">${MODES.map(m=>`<button class="mode" data-m="${m.id}"><span class="ic" style="background:${m.c}"><span class="de">${m.ic}</span></span><span><b>${m.id==='art'?'<span class="de">der / die / das</span>':esc(m.t)}</b><small>${esc(m.d)}</small></span></button>`).join('')}</div>
-  ${best!=null?`<div class="best">باشترین ئەنجامت: ${best}٪</div>`:''}</div>`;
+  ${best!=null?`<div class="best">باشترین ئەنجامت: ${best}٪</div>`:''}</div>
+  <div class="best">ناو: <b>${esc(getName())}</b> · <a href="#" id="chn" style="color:var(--muted)">گۆڕین</a><br>ئەنجامەکانت بۆ مامۆستا دەنێردرێن.</div>`;
+  app.querySelector('#chn').onclick=e=>{e.preventDefault();store('dilan-name','');nameGate()};
   app.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const i=+b.dataset.s;if(sel.has(i)){if(sel.size>1)sel.delete(i)}else sel.add(i);home()});
   app.querySelectorAll('.mode').forEach(b=>b.onclick=()=>{const m=b.dataset.m;m==='list'?list():start(m)});
   window.scrollTo(0,0);
@@ -206,6 +223,9 @@ function answer(b){
 }
 function result(){
   const pct=Math.round(score/Q.length*100);
+  try{const ans=l=>l.type==='art'?l.v:l.type==='kd'?W[l.v].de:W[l.v].ku, right=l=>l.type==='art'?art(W[l.i]).a:l.type==='kd'?W[l.i].de:W[l.i].ku;
+    logEvent({event:'تاقیکردنەوە',mode:MODE_NAME[Q.mode],score,total:Q.length,pct,
+      wrong:LOG.filter(l=>!l.ok).map(l=>W[l.i].de+' ← '+ans(l)+' (ڕاست: '+right(l)+')').join('\n')})}catch(e){}
   const best=store('dilan-best');if(best==null||pct>best)store('dilan-best',pct);
   const msg=pct>=90?'نایاب بوو، دیلان!':pct>=70?'زۆر باشە!':pct>=50?'باشە، بەردەوام بە!':'جارێکی تر هەوڵ بدەرەوە';
   const C=2*Math.PI*72,col=pct>=70?'var(--ok)':pct>=50?'#e0a800':'var(--bad)';
